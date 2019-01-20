@@ -27,6 +27,9 @@ func main() {
 	case "hex":
 		err = PrintHexDump()
 
+	case "grep":
+		err = GrepDump()
+
 	case "unpack":
 		if len(os.Args) < 4 {
 			usage()
@@ -43,6 +46,19 @@ func main() {
 		}
 
 		err = MusicUnpack()
+
+	case "music-pack":
+		if len(os.Args) < 5 {
+			usage()
+		}
+
+		err = MusicPack()
+
+	case "music-parse":
+		err = ParseMusicLib()
+
+	case "dump-resources":
+		err = DumpResources()
 
 	default:
 		log.Print("unknown command")

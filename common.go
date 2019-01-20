@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/hex"
 	"github.com/pkg/errors"
 	"io"
@@ -19,6 +20,8 @@ func PrintHeader() error {
 	defer assets.Close()
 
 	log.Print(dump(assets.Header))
+	log.Print(dump(assets.MetaData.TypeInfo))
+	log.Print(dump(assets.MetaData.Externals))
 
 	return nil
 }
@@ -33,10 +36,12 @@ func PrintMeta() error {
 	var filterByType uint64
 	if len(os.Args) > 3 {
 		filterByType, err = strconv.ParseUint(os.Args[3], 10, 32)
-		return errors.Errorf("invalid type_id: %v", filterByType)
+		if err != nil {
+			return errors.Errorf("invalid type_id: %v", filterByType)
+		}
 	}
 
-	return assets.RangeObjects(func(desc Object, r io.Reader) error {
+	return assets.RangeObjects(func(desc Object, r io.ReadSeeker) error {
 		if filterByType != 0 && desc.TypeID != uint32(filterByType) {
 			return nil
 		}
@@ -56,10 +61,12 @@ func PrintHexDump() error {
 	var filterByType uint64
 	if len(os.Args) > 3 {
 		filterByType, err = strconv.ParseUint(os.Args[3], 10, 32)
-		return errors.Errorf("invalid type_id: %v", filterByType)
+		if err != nil {
+			return errors.Errorf("invalid type_id: %v", filterByType)
+		}
 	}
 
-	return assets.RangeObjects(func(desc Object, r io.Reader) error {
+	return assets.RangeObjects(func(desc Object, r io.ReadSeeker) error {
 		if filterByType != 0 && desc.TypeID != uint32(filterByType) {
 			return nil
 		}
@@ -68,6 +75,29 @@ func PrintHexDump() error {
 			return err
 		}
 		log.Printf("%+v\n%v", desc, hex.Dump(data))
+		return nil
+	})
+}
+
+func GrepDump() error {
+	assets, err := NewAssetsReader(os.Args[2])
+	if err != nil {
+		return err
+	}
+	defer assets.Close()
+
+	if len(os.Args) < 4 {
+		usage()
+	}
+
+	return assets.RangeObjects(func(desc Object, r io.ReadSeeker) error {
+		data, err := ioutil.ReadAll(r)
+		if err != nil {
+			return err
+		}
+		if bytes.Contains(data, []byte(os.Args[3])) {
+			log.Printf("%+v\n%v", desc, hex.Dump(data))
+		}
 		return nil
 	})
 }
@@ -84,7 +114,7 @@ func UnpackAssets() error {
 		return err
 	}
 
-	return assets.RangeObjects(func(desc Object, r io.Reader) error {
+	return assets.RangeObjects(func(desc Object, r io.ReadSeeker) error {
 		dir := path.Join(os.Args[3], strconv.FormatUint(uint64(desc.TypeID), 10))
 		err := os.MkdirAll(dir, 0777)
 		if err != nil {

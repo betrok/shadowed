@@ -510,10 +510,10 @@ func CreateModifiedAssets(
 }
 
 func writeAlign(w io.Writer, size, line int) error {
-	if size % line == 0 {
+	if size%line == 0 {
 		return nil
 	}
-	_, err := w.Write(make([]byte, line - size % line))
+	_, err := w.Write(make([]byte, line-size%line))
 	return err
 }
 
@@ -528,8 +528,8 @@ type ObjectReference struct {
 
 type ResourceManager struct {
 	Resources map[string]ObjectReference
-	Dependent []struct{
-		Object ObjectReference
+	Dependent []struct {
+		Object       ObjectReference
 		Dependencies []ObjectReference
 	}
 }

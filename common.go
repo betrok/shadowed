@@ -26,7 +26,7 @@ func PrintHeader() error {
 	return nil
 }
 
-func PrintMeta() error {
+func PrintObjects() error {
 	assets, err := NewAssetsReader(os.Args[2])
 	if err != nil {
 		return err

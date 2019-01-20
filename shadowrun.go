@@ -12,13 +12,13 @@ import (
 	"log"
 	"os"
 	"path"
-	"strings"
 	"sort"
+	"strings"
 )
 
 const (
-	MainData = "mainData"
-	AssetsFile = "resources.assets"
+	MainData       = "mainData"
+	AssetsFile     = "resources.assets"
 	AssetsDataFile = AssetsFile + ".resS"
 
 	MusicLibPath = "StreamingAssets/ContentPacks/shadowrun_core/data/misc"
@@ -73,7 +73,7 @@ func (m MusicDescription) Bytes(order binary.ByteOrder) []byte {
 
 func MusicList() error {
 	// In theory some of objects can be in separate files, but it does not seem to be a thing for the shadowrun music.
-	assets, err := NewAssetsReader(path.Join(os.Args[2], "resources.assets"))
+	assets, err := NewAssetsReader(path.Join(os.Args[2], AssetsFile))
 	if err != nil {
 		return err
 	}
@@ -145,21 +145,25 @@ func MusicUnpack() error {
 }
 
 func MusicPack() error {
+	dataRoot := os.Args[2]
+	musicDir := os.Args[3]
+	outputDir := os.Args[4]
+
 	// Create output dir
-	err := os.MkdirAll(os.Args[4], 0777)
+	err := os.MkdirAll(outputDir, 0777)
 	if err != nil {
 		return err
 	}
 
 	log.Print("Preparing .resS file...")
-	newMap, err := prepareMusic(os.Args[3], path.Join(os.Args[4], AssetsDataFile))
+	newMap, err := prepareMusic(musicDir, path.Join(outputDir, AssetsDataFile))
 
 	if len(newMap) == 0 {
-		return errors.Errorf("suitable tracks not found in %v", os.Args[3])
+		return errors.Errorf("suitable tracks not found in %v", musicDir)
 	}
 
 	log.Print("Parsing assets file...")
-	assets, err := NewAssetsReader(path.Join(os.Args[2], AssetsFile))
+	assets, err := NewAssetsReader(path.Join(dataRoot, AssetsFile))
 	if err != nil {
 		return err
 	}
@@ -224,14 +228,14 @@ func MusicPack() error {
 
 	log.Print("Creating modified assets...")
 	maxID, err := CreateModifiedAssets(
-		path.Join(os.Args[4], AssetsFile), assets, add, replace, remove,
+		path.Join(outputDir, AssetsFile), assets, add, replace, remove,
 	)
 	if err != nil {
 		return err
 	}
 
 	log.Printf("Parsing %v...", MainData)
-	mainData, err := NewAssetsReader(path.Join(os.Args[2], MainData))
+	mainData, err := NewAssetsReader(path.Join(dataRoot, MainData))
 	if err != nil {
 		return err
 	}
@@ -257,10 +261,10 @@ func MusicPack() error {
 
 	log.Printf("Creating modified %v...", MainData)
 	for name, pos := range addPos {
-		resources.Resources["music/" + name] = ObjectReference{
+		resources.Resources["music/"+name] = ObjectReference{
 			// Little extra hardcode... @TODO Extract it from externals
 			FileID: 1,
-			PathID: maxID - uint32(len(add) - pos),
+			PathID: maxID - uint32(len(add)-pos),
 		}
 	}
 
@@ -272,14 +276,14 @@ func MusicPack() error {
 	resObject.Data = buf.Bytes()
 
 	_, err = CreateModifiedAssets(
-		path.Join(os.Args[4], MainData), mainData, nil, []ReplacementObject{resObject}, nil,
+		path.Join(outputDir, MainData), mainData, nil, []ReplacementObject{resObject}, nil,
 	)
 	if err != nil {
 		return err
 	}
 
 	log.Printf("Parsing %v...", MusicLibName)
-	lib, err := parseMusicLib(path.Join(os.Args[2], MusicLibPath, MusicLibName))
+	lib, err := parseMusicLib(path.Join(dataRoot, MusicLibPath, MusicLibName))
 	if err != nil {
 		return err
 	}
@@ -321,7 +325,7 @@ func MusicPack() error {
 		return lib.Groups[i].Name < lib.Groups[j].Name
 	})
 
-	mDir := path.Join(os.Args[4], MusicLibPath)
+	mDir := path.Join(outputDir, MusicLibPath)
 	err = os.MkdirAll(mDir, 0777)
 	if err != nil {
 		return err

@@ -195,10 +195,10 @@ func MusicPack() error {
 				},
 			})
 			used[m.Name] = true
-			log.Printf("replacing %v", m.Name)
+			log.Printf("  replacing %v", m.Name)
 		} else {
 			remove = append(remove, desc.ID)
-			log.Printf("removing %v", m.Name)
+			log.Printf("  removing %v", m.Name)
 		}
 
 		return nil
@@ -219,7 +219,7 @@ func MusicPack() error {
 			Data:    m.Bytes(assets.Order),
 		})
 		addPos[strings.ToLower(m.Name)] = len(add)
-		log.Printf("adding %v", m.Name)
+		log.Printf("  adding %v", m.Name)
 	}
 
 	if len(remove) > 0 {
@@ -261,11 +261,14 @@ func MusicPack() error {
 
 	log.Printf("Creating modified %v...", MainData)
 	for name, pos := range addPos {
-		resources.Resources["music/"+name] = ObjectReference{
-			// Little extra hardcode... @TODO Extract it from externals
-			FileID: 1,
-			PathID: maxID - uint32(len(add)-pos),
-		}
+		resources.Resources = append(resources.Resources, NamedReference{
+			Name: "music/" + name,
+			Object: ObjectReference{
+				// Little extra hardcode... @TODO Extract it from externals
+				FileID: 1,
+				PathID: maxID - uint32(len(add)-pos),
+			},
+		})
 	}
 
 	var buf bytes.Buffer
@@ -302,9 +305,9 @@ func MusicPack() error {
 				Name:   m.Name,
 				Tracks: []string{m.Name},
 			})
-			log.Printf("adding %v to lib", m.Name)
+			log.Printf("  adding %v to lib", m.Name)
 		} else {
-			log.Printf("%v already in lib", m.Name)
+			log.Printf("  %v already in lib", m.Name)
 		}
 	}
 
@@ -317,7 +320,7 @@ func MusicPack() error {
 			}
 		}
 		if !found {
-			log.Printf("%v found in lib, but missing in resources", name)
+			log.Printf("  %v found in lib, but missing in resources", name)
 		}
 	}
 

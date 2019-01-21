@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"github.com/pkg/errors"
 	"io"
+	"log"
 	"os"
 	"reflect"
 	"strings"
@@ -217,6 +218,11 @@ func readVal(r io.ReadSeeker, val reflect.Value, order binary.ByteOrder, cString
 				return err
 			}
 
+			old := val.MapIndex(key)
+			if old.IsValid() {
+				log.Printf("[warn] duplicate value for key %v: new: %+v, old: %+v", key.Interface(), elem.Interface(), old.Interface())
+			}
+
 			val.SetMapIndex(key, elem)
 		}
 
@@ -307,7 +313,8 @@ func writeVal(w io.Writer, val reflect.Value, order binary.ByteOrder, cString bo
 		}
 
 	case reflect.Map:
-		err := binary.Write(w, order, uint32(val.Len()))
+		mapLen := uint32(val.Len())
+		err := binary.Write(w, order, mapLen)
 		if err != nil {
 			return err
 		}
@@ -526,8 +533,13 @@ type ObjectReference struct {
 	PathID uint32
 }
 
+type NamedReference struct {
+	Name   string
+	Object ObjectReference
+}
+
 type ResourceManager struct {
-	Resources map[string]ObjectReference
+	Resources []NamedReference
 	Dependent []struct {
 		Object       ObjectReference
 		Dependencies []ObjectReference

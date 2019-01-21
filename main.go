@@ -68,10 +68,12 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	log.Print("Done")
 }
 
 func usage() {
-	log.Print(`Usage:  shadowed <command> [argumants...]
+	log.Print(`Usage:  shadowed <command> [arguments...]
 
 Common commands (should work with most unity assets files with version 9):
     header <assets_file>

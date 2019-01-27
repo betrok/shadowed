@@ -19,9 +19,9 @@ func PrintHeader() error {
 	}
 	defer assets.Close()
 
-	log.Print(dump(assets.Header))
-	log.Print(dump(assets.MetaData.TypeInfo))
-	log.Print(dump(assets.MetaData.Externals))
+	log.Print("Main:\n", dump(assets.Header))
+	log.Print("TypeInfo:\n", dump(assets.MetaData.TypeInfo))
+	log.Print("Externals:\n", dump(assets.MetaData.Externals))
 
 	return nil
 }

@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/hex"
 	"github.com/pkg/errors"
 	"io"
 	"log"
@@ -35,7 +36,7 @@ type Header struct {
 	DataOffset uint32
 	ByteOrder  uint8
 	// padding
-	Reserved [3]uint8
+	Reserved [3]uint8 `json:"-"`
 }
 
 type MetaData struct {
@@ -44,8 +45,26 @@ type MetaData struct {
 	Externals []External
 }
 
+type Signature string
+
+func (s Signature) Serialize(w io.Writer, order binary.ByteOrder, cString bool) error {
+	var buf [8]byte
+	copy(buf[:], []byte(s))
+	return write(w, buf, order, cString)
+}
+
+func (s *Signature) Deserialize(r io.ReadSeeker, order binary.ByteOrder, cString bool) error {
+	var buf [8]byte
+	err := read(r, &buf, order, cString)
+	if err != nil {
+		return err
+	}
+	*s = Signature(strings.TrimRight(string(buf[:]), "\x00"))
+	return nil
+}
+
 type TypesHeader struct {
-	Signature uint64
+	Signature Signature
 	Platform  uint32
 	Classes   []Class
 	Unknown   uint32
@@ -76,9 +95,33 @@ type Object struct {
 	Destroyed uint16
 }
 
+type GUID string
+
+func (id GUID) Serialize(w io.Writer, order binary.ByteOrder, cString bool) error {
+	var buf [16]byte
+	size, err := hex.Decode(buf[:], []byte(id))
+	if err != nil {
+		return err
+	}
+	if size != 16 {
+		return errors.New("invalid GUID format")
+	}
+	return write(w, buf, order, cString)
+}
+
+func (id *GUID) Deserialize(r io.ReadSeeker, order binary.ByteOrder, cString bool) error {
+	var buf [16]byte
+	err := read(r, &buf, order, cString)
+	if err != nil {
+		return err
+	}
+	*id = GUID(hex.EncodeToString(buf[:]))
+	return nil
+}
+
 type External struct {
 	AssetPath string
-	GUID      [16]byte
+	GUID      GUID
 	Type      uint32
 	FilePath  string
 }
@@ -133,12 +176,6 @@ func (r *AssetsReader) Close() error {
 	return r.fd.Close()
 }
 
-func (r AssetsReader) Signature() string {
-	buf := make([]byte, 8)
-	r.Order.PutUint64(buf, r.MetaData.TypeInfo.Signature)
-	return strings.TrimRight(string(buf), "\x00")
-}
-
 func (r *AssetsReader) RangeObjects(f func(desc Object, r io.ReadSeeker) error) error {
 	for _, obj := range r.MetaData.Objects {
 		err := f(obj, io.NewSectionReader(r.fd, int64(r.Header.DataOffset+obj.Shift), int64(obj.Size)))
@@ -153,6 +190,19 @@ func (r *AssetsReader) read(i interface{}, order binary.ByteOrder) error {
 	return read(r.fd, i, order, true)
 }
 
+type UnitySerializer interface {
+	Serialize(w io.Writer, order binary.ByteOrder, cString bool) error
+}
+
+type UnityDeserializer interface {
+	Deserialize(r io.ReadSeeker, order binary.ByteOrder, cString bool) error
+}
+
+var (
+	serializerType   = reflect.TypeOf(new(UnitySerializer)).Elem()
+	deserializerType = reflect.TypeOf(new(UnityDeserializer)).Elem()
+)
+
 func read(r io.ReadSeeker, i interface{}, order binary.ByteOrder, cString bool) error {
 	val := reflect.ValueOf(i)
 	if val.Kind() != reflect.Ptr {
@@ -162,6 +212,10 @@ func read(r io.ReadSeeker, i interface{}, order binary.ByteOrder, cString bool) 
 }
 
 func readVal(r io.ReadSeeker, val reflect.Value, order binary.ByteOrder, cString bool) error {
+	if reflect.PtrTo(val.Type()).Implements(deserializerType) {
+		return val.Addr().Interface().(UnityDeserializer).Deserialize(r, order, cString)
+	}
+
 	switch val.Kind() {
 	case reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		return binary.Read(r, order, val.Addr().Interface())
@@ -284,6 +338,10 @@ func write(w io.Writer, i interface{}, order binary.ByteOrder, cString bool) err
 }
 
 func writeVal(w io.Writer, val reflect.Value, order binary.ByteOrder, cString bool) error {
+	if val.Type().Implements(serializerType) {
+		return val.Interface().(UnitySerializer).Serialize(w, order, cString)
+	}
+
 	switch val.Kind() {
 	case reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		return binary.Write(w, order, val.Interface())

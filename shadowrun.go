@@ -396,23 +396,12 @@ func ParseMusicLib() error {
 
 func parseMusicLib(path string) (class.MusicLib, error) {
 	var ret class.MusicLib
-
-	data, err := ioutil.ReadFile(path)
-	if err != nil {
-		return ret, err
-	}
-
-	err = proto.Unmarshal(data, &ret)
+	err := readProtoFile(path, &ret)
 	return ret, err
 }
 
 func saveMusicLib(lib class.MusicLib, path string) error {
-	data, err := proto.Marshal(&lib)
-	if err != nil {
-		return err
-	}
-
-	return ioutil.WriteFile(path, data, 0666)
+	return writeProtoFile(path, &lib)
 }
 
 func DumpResources() error {
@@ -435,4 +424,37 @@ func DumpResources() error {
 
 		return nil
 	})
+}
+
+func CPackMakeWritable() error {
+	var cpack class.ContentPack
+
+	err := readProtoFile(os.Args[2], &cpack)
+	if err != nil {
+		return err
+	}
+
+	cpack.ReadOnly = false
+	log.Print(dump(cpack))
+
+	return writeProtoFile(os.Args[2], &cpack)
+}
+
+func readProtoFile(path string, pb proto.Message) error {
+	data, err := ioutil.ReadFile(path)
+	if err != nil {
+		return err
+	}
+
+	err = proto.Unmarshal(data, pb)
+	return err
+}
+
+func writeProtoFile(path string, pb proto.Message) error {
+	data, err := proto.Marshal(pb)
+	if err != nil {
+		return err
+	}
+
+	return ioutil.WriteFile(path, data, 0666)
 }

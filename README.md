@@ -62,6 +62,10 @@ That is, just copy everything from `output_dir` to the Shadowrun data with repla
 
 New music will be listed in the editor after restart.
 
+### Removing read_only flag from a published UGC
+
+`shadowed cpack-make-writable path/to/project.cpack.bytes`
+
 ### Other
 
 See `shadowed --help`.

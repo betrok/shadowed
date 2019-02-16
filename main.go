@@ -60,6 +60,9 @@ func main() {
 	case "dump-resources":
 		err = DumpResources()
 
+	case "cpack-make-writable":
+		err = CPackMakeWritable()
+
 	default:
 		log.Print("unknown command")
 		usage()
@@ -109,6 +112,10 @@ Shadowrun-specific commands:
 
     dump-resources <data_root>
         Print dump of ResourcesManager from the mainData file.
+
+	cpack-make-writable <project.cpack.bytes>
+		Reset read_only flag in project.cpack.bytes.
+		Can be used for editing a UGC published by someone else.
 `)
 	os.Exit(1)
 }
